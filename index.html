@@ -33,13 +33,17 @@
         .form-group input { padding: 12px; font-size: 16px; border-radius: 8px; border: 1px solid #fff; background: #333; color: white; }
 
         #gameCanvas { display: block; background: #222; width: 100vw; height: 40vh; }
+        
         #controls { display: flex; width: 100vw; height: 60vh; }
         .hit-btn {
-            flex: 1; border: none; font-size: 24px; font-weight: bold; color: white;
-            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            flex: 1; border: none; font-size: 20px; font-weight: bold; color: white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;
+            box-sizing: border-box; border-right: 1px solid #222;
         }
-        #btnDon { background-color: #d9534f; }
-        #btnKa  { background-color: #337ab7; }
+        #btnLeft { background-color: #337ab7; }
+        #btnDon  { background-color: #d9534f; }
+        #btnRight{ background-color: #2eb82e; }
+        .hit-btn:active { opacity: 0.7; }
         
         #infoOverlay {
             position: absolute; top: 10px; left: 10px; font-size: 16px;
@@ -70,84 +74,49 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // ログイン処理
         window.handleLogin = () => {
             const email = document.getElementById('authEmail').value;
             const password = document.getElementById('authPassword').value;
             signInWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
-                    alert("ログインしました！お稽古を始めましょう。");
-                    window.nextScreen('screenMenu');
-                })
-                .catch((error) => {
-                    alert("ログインできませんでした。IDまたはパスワードが間違っているか、登録されていません。");
-                });
+                .then(() => { alert("ログインしました！"); window.nextScreen('screenMenu'); })
+                .catch(() => { alert("ログインに失敗しました。"); });
         };
+        window.logout = () => { signOut(auth).then(() => alert("ログアウトしました")); };
 
-        window.logout = () => {
-            signOut(auth).then(() => alert("ログアウトしました"));
-        };
-
-        // ログイン状態の監視
         onAuthStateChanged(auth, (user) => {
             const gotoLoginBtn = document.getElementById('gotoLoginBtn');
             const logoutBtn = document.getElementById('logoutBtn');
             const myPageBtn = document.getElementById('myPageBtn');
             const userStatus = document.getElementById('userStatus');
-
             if (user) {
                 window.currentUser = user;
-                const userName = user.email.split('@')[0];
-                userStatus.innerText = `お稽古中: ${userName} さん`;
-                gotoLoginBtn.style.display = "none";
-                logoutBtn.style.display = "block";
-                myPageBtn.classList.remove('btn-disabled');
+                userStatus.innerText = `お稽古中: ${user.email.split('@')[0]} さん`;
+                gotoLoginBtn.style.display = "none"; logoutBtn.style.display = "block"; myPageBtn.classList.remove('btn-disabled');
             } else {
-                window.currentUser = null;
-                userStatus.innerText = "ゲストモード（スコアは保存されません）";
-                gotoLoginBtn.style.display = "block";
-                logoutBtn.style.display = "none";
-                myPageBtn.classList.add('btn-disabled');
+                window.currentUser = null; userStatus.innerText = "ゲストモード（スコアは保存されません）";
+                gotoLoginBtn.style.display = "block"; logoutBtn.style.display = "none"; myPageBtn.classList.add('btn-disabled');
             }
         });
 
-        // スコア保存
         window.saveScoreToFirebase = async (gakki, kyoku, score, ryo, ka) => {
             if (!window.currentUser) return;
             try {
                 await addDoc(collection(db, "scores"), {
-                    uid: window.currentUser.uid,
-                    userEmail: window.currentUser.email,
-                    gakki: gakki,
-                    kyoku: kyoku,
-                    score: score,
-                    ryo: ryo,
-                    ka: ka,
-                    timestamp: new Date()
+                    uid: window.currentUser.uid, userEmail: window.currentUser.email,
+                    gakki: gakki, kyoku: kyoku, score: score, ryo: ryo, ka: ka, timestamp: new Date()
                 });
-            } catch (e) { console.error("データ保存エラー: ", e); }
+            } catch (e) { console.error(e); }
         };
 
-        // 履歴読み込み
         window.loadHistory = async () => {
             if (!window.currentUser) return;
-            const listDiv = document.getElementById('historyList');
-            listDiv.innerHTML = "読み込み中...";
-            
-            const q = query(
-                collection(db, "scores"),
-                where("uid", "==", window.currentUser.uid),
-                orderBy("timestamp", "desc"),
-                limit(10)
-            );
-            
-            const querySnapshot = await getDocs(q);
-            listDiv.innerHTML = "";
+            const listDiv = document.getElementById('historyList'); listDiv.innerHTML = "読み込み中...";
+            const q = query(collection(db, "scores"), where("uid", "==", window.currentUser.uid), orderBy("timestamp", "desc"), limit(10));
+            const querySnapshot = await getDocs(q); listDiv.innerHTML = "";
             if(querySnapshot.empty) { listDiv.innerHTML = "まだ履歴がありません。"; }
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                const item = document.createElement('div');
-                item.className = "history-item";
+                const item = document.createElement('div'); item.className = "history-item";
                 item.innerHTML = `<span>${data.kyoku}(${data.gakki})</span> <strong>${data.score}点</strong>`;
                 listDiv.appendChild(item);
             });
@@ -167,9 +136,8 @@
 
     <div id="screenAuth" class="screen">
         <h2>門下生 ログイン</h2>
-        <p style="font-size: 14px; color: #aaa; margin-top: -10px; margin-bottom: 20px;">※配布されたお稽古用IDとパスワードを入力してください</p>
         <div class="form-group">
-            <label>お稽古用ID (メールアドレス形式)</label>
+            <label>お稽古用ID</label>
             <input type="email" id="authEmail" placeholder="taro@hayashi.com">
         </div>
         <div class="form-group">
@@ -188,9 +156,9 @@
 
     <div id="screenGakki" class="screen">
         <h2>どの楽器を奏でますか？</h2>
-        <button class="btn" onclick="selectGakki('大太鼓')">🥁 大太鼓（おおだいこ）</button>
-        <button class="btn btn-blue" onclick="selectGakki('〆太鼓')">🪘 〆太鼓（しめだいこ）</button>
-        <button class="btn btn-gold" onclick="selectGakki('小鐘・大鐘')">🔔 小鐘・大鐘 (こがね・おおがね)</button>
+        <button class="btn" onclick="selectGakki('大太鼓')">🥁 大太鼓</button>
+        <button class="btn btn-blue" onclick="selectGakki('〆太鼓')">🪘 〆太鼓</button>
+        <button class="btn btn-gold" onclick="selectGakki('小鐘・大鐘')">🔔 小鐘・大鐘</button>
         <button class="btn" style="background:#555;" onclick="nextScreen('screenMenu')">戻る</button>
     </div>
 
@@ -207,11 +175,9 @@
         </div>
         <canvas id="gameCanvas"></canvas>
         <div id="controls">
-            <div id="controls">
-            <div id="btnLeft" class="hit-btn">左<br></div>
-            <div id="btnDon" class="hit-btn">中<br></div>
-            <div id="btnRight" class="hit-btn">右<br></div>
-        </div>
+            <div id="btnLeft" class="hit-btn">左打ち<br>(2)</div>
+            <div id="btnDon" class="hit-btn">中央打ち<br>(1)</div>
+            <div id="btnRight" class="hit-btn">右打ち<br>(3)</div>
         </div>
     </div>
 
@@ -226,103 +192,86 @@
     </div>
 
 <script>
-// --- ⚙️ 新しい7曲のデータ構造 ⚙️ ---
+// --- ⚙️ 楽譜・音声設定データベース ⚙️ ---
 const kyokuMasta = ["道行き", "はしり", "まわし", "根曳唄", "網打ち", "網待ち", "打ち込み"];
 
-// 各曲のBGM音声ファイルへの紐付け (.m4a形式)
 const bgmUrls = {
     "道行き": "audio/michiyuki.m4a",
     "はしり": "audio/hashiri.m4a",
     "まわし": "audio/mawashi.m4a",
-    "根曳唄": "audio/nebikiuta_1.mp3",
+    "根曳唄": "audio/nebikiuta_1.mp3", // 👈 指定されたmp3形式をセット
     "網打ち": "audio/amiuchi.m4a",
     "網待ち": "audio/amimachi.m4a",
     "打ち込み": "audio/uchikomi.m4a"
 };
 
-// 🥁 楽譜データ（ここを今後埋めていってください）
 const hayashiScores = {
-    "道行き": {
-        "大太鼓": [], "〆太鼓": [], "小鐘・大鐘": []
-    },
-    "はしり": {
-        "大太鼓": [], "〆太鼓": [], "小鐘・大鐘": []
-    },
-    "まわし": {
-        "大太鼓": [], "〆太鼓": [], "小鐘・大鐘": []
-    },
+    "道行き": { "大太鼓": [], "〆太鼓": [], "小鐘・大鐘": [] },
+    "はしり": { "大太鼓": [], "〆太鼓": [], "小鐘・大鐘": [] },
+    "まわし": { "大太鼓": [], "〆太鼓": [], "小鐘・大鐘": [] },
     "根曳唄": {
         "大太鼓": [], 
         "〆太鼓": [], 
-         // 1: center 2:left 3:right
-         "小鐘・大鐘": [
-            //fu ne wa
-            { time: 8.917, type: 1 },//e
+        "小鐘・大鐘": [
+            // fu ne wa
+            { time: 8.917, type: 1 }, //e
             { time: 9.908, type: 2 },  
             { time: 10.389, type: 3 },
             { time: 10.917, type: 2 },
-            //sa ka
-            { time: 12.911, type: 2 },  //ma
-            { time: 13.939, type: 3 },//a
-            { time: 14.920, type: 2 },//ku
-            //na ga
-            { time: 16.959, type: 2 },//re
-            { time: 17.964, type: 3 },//wo
-            { time: 18.954, type: 2 },//o
-            //nobo
-            { time: 20.946, type: 1 },//ru
+            // sa ka
+            { time: 12.911, type: 2 }, //ma
+            { time: 13.939, type: 3 }, //a
+            { time: 14.920, type: 2 }, //ku
+            // na ga
+            { time: 16.959, type: 2 }, //re
+            { time: 17.964, type: 3 }, //wo
+            { time: 18.954, type: 2 }, //o
+            // nobo
+            { time: 20.946, type: 1 }, //ru
             { time: 21.833, type: 2 },
             { time: 22.286, type: 3 },
             { time: 22.777, type: 2 },
-            //ah 
-            { time: 24.928, type: 1 },//yo-i yoi
-            { time: 26.758, type: 1 },//yo-i yoi
-            //a re wa 
-            { time: 28.893, type: 1 },//e
+            // ah 
+            { time: 24.928, type: 1 }, //yo-i yoi
+            { time: 26.758, type: 1 }, //yo-i yoi
+            // a re wa 
+            { time: 28.893, type: 1 }, //e
             { time: 29.774, type: 2 },  
             { time: 30.294, type: 3 },
             { time: 30.760, type: 2 },
-            //a re wa 
-            { time: 32.629, type: 1 },//e
-            //abu
-            { time: 34.537, type: 2 },  //ra
-            { time: 35.431, type: 3 },//ya
-            { time: 36.458, type: 2 },//a
-            //kaa wa
-            { time: 38.220, type: 1 },//a
-            //fu ne ja
-            { time: 41.753, type: 2 },  //e
+            // a re wa 
+            { time: 32.629, type: 1 }, //e
+            // abu
+            { time: 34.537, type: 2 }, //ra
+            { time: 35.431, type: 3 }, //ya
+            { time: 36.458, type: 2 }, //a
+            // kaa wa
+            { time: 38.220, type: 1 }, //a
+            // fu ne ja
+            { time: 41.753, type: 2 }, //e
             { time: 42.673, type: 3 },
             { time: 43.607, type: 2 },
-            //sa
-            { time: 45.456, type: 1 },//yo
-            { time: 46.334, type: 2 },  //i
-            { time: 46.768, type: 3 },//ya
-            { time: 47.230, type: 2 },//sa
-            //ah 
+            // sa
+            { time: 45.456, type: 1 }, //yo
+            { time: 46.334, type: 2 }, //i
+            { time: 46.768, type: 3 }, //ya
+            { time: 47.230, type: 2 }, //sa
+            // ah 
             { time: 49.277, type: 2 }, //yo
-            { time: 50.362, type: 3 },//ya
-            { time: 51.334, type: 2 },//se
-
+            { time: 50.362, type: 3 }, //ya
+            { time: 51.334, type: 2 }  //se
         ]
     },
-    "網打ち": {
-        "大太鼓": [], "〆太鼓": [], "鉦": []
-    },
-    "網待ち": {
-        "大太鼓": [], "〆太鼓": [], "鉦": []
-    },
-    "打ち込み": {
-        "大太鼓": [], "〆太鼓": [], "鉦": []
-    }
+    "網打ち": { "大太鼓": [], "〆太鼓": [], "小鐘・大鐘": [] },
+    "網待ち": { "大太鼓": [], "〆太鼓": [], "小鐘・大鐘": [] },
+    "打ち込み": { "大太鼓": [], "〆太鼓": [], "小鐘・大鐘": [] }
 };
 
-// --- ゲーム制御システム ---
+// --- ゲームシステム制御 ---
 let selectedGakki = ""; let selectedKyoku = ""; let startTime = 0; let isPlaying = false;
 const JUDGE_X = 80; const NOTE_SPEED = 250;
 let score = 0; let countRyo = 0; let countKa = 0; let judgeText = ""; let judgeTextTimer = 0;
-let currentNotes = [];
-let bgmAudio = null;
+let currentNotes = []; let bgmAudio = null;
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -336,13 +285,10 @@ window.nextScreen = (screenId) => {
 
 window.selectGakki = (gakki) => {
     selectedGakki = gakki;
-    const listDiv = document.getElementById('kyokuList');
-    listDiv.innerHTML = "";
+    const listDiv = document.getElementById('kyokuList'); listDiv.innerHTML = "";
     kyokuMasta.forEach(kyoku => {
-        const button = document.createElement('button');
-        button.className = "btn btn-blue";
-        button.innerText = kyoku;
-        button.onclick = () => startGame(kyoku);
+        const button = document.createElement('button'); button.className = "btn btn-blue";
+        button.innerText = kyoku; button.onclick = () => startGame(kyoku);
         listDiv.appendChild(button);
     });
     nextScreen('screenKyoku');
@@ -355,48 +301,39 @@ function startGame(kyoku) {
     score = 0; countRyo = 0; countKa = 0; judgeText = "";
     document.getElementById('txtScore').innerText = "0";
 
-    // 楽譜データベースから、選択された[曲]と[楽器]のデータを読み込む
     if (hayashiScores[selectedKyoku] && hayashiScores[selectedKyoku][selectedGakki]) {
         currentNotes = JSON.parse(JSON.stringify(hayashiScores[selectedKyoku][selectedGakki]));
-    } else {
-        currentNotes = [];
-    }
+    } else { currentNotes = []; }
 
     nextScreen('screenGame');
     if (audioCtx.state === 'suspended') audioCtx.resume();
     
-    // BGMの読み込みと再生処理
     if (bgmAudio) { bgmAudio.pause(); }
     bgmAudio = new Audio(bgmUrls[selectedKyoku]);
     bgmAudio.preload = "auto";
     
     bgmAudio.addEventListener('canplaythrough', () => {
-        setTimeout(() => {
-            bgmAudio.play();
-            startTime = performance.now();
-            isPlaying = true;
-            gameLoop();
-        }, 1000);
+        setTimeout(() => { bgmAudio.play(); startTime = performance.now(); isPlaying = true; gameLoop(); }, 1000);
     }, { once: true });
-
-    // 音声ファイルの読み込みに失敗・またはファイルがない場合でもゲームが動くようにする安全装置
     bgmAudio.addEventListener('error', () => {
-        console.log("BGMファイルが読み込めないか、まだ配置されていません。無音で開始します。");
-        startTime = performance.now();
-        isPlaying = true;
-        gameLoop();
+        startTime = performance.now(); isPlaying = true; gameLoop();
     }, { once: true });
 }
 
-// 叩いた時の効果音（Web Audio API）
+// 効果音再生
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playSynthSound(type) {
     const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
     osc.connect(gain); gain.connect(audioCtx.destination);
     
-    // プレイ中の楽器に応じて音の高さを少しだけ自動調整
-    let freq = type === 1 ? 120 : 300;
-    if (selectedGakki === "鉦") { freq = type === 1 ? 600 : 900; } // 鉦は高めのキンキンした音に
+    let freq = 120;
+    if (selectedGakki === "小鐘・大鐘") {
+        if(type === 1) freq = 520;
+        if(type === 2) freq = 780;
+        if(type === 3) freq = 920;
+    } else {
+        freq = type === 1 ? 120 : 250;
+    }
     
     osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
     osc.start(); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
@@ -423,19 +360,16 @@ function gameLoop() {
         activeNotes++;
         const x = (note.time - currentTime) * NOTE_SPEED + JUDGE_X;
         if (x > -30 && x < canvas.width + 30) {
-            ctx.fillStyle = note.type === 1 ? '#d9534f' : '#337ab7';
+            if (note.type === 1) ctx.fillStyle = '#d9534f';
+            else if (note.type === 2) ctx.fillStyle = '#337ab7';
+            else ctx.fillStyle = '#2eb82e';
+            
             ctx.beginPath(); ctx.arc(x, centerY, 25, 0, Math.PI * 2); ctx.fill();
         }
     });
 
-    // 全てのノーツが流れる、または音楽が終わったらリザルトへ
-    let isAudioEnded = bgmAudio && bgmAudio.duration ? currentTime > bgmAudio.duration : currentTime > 10;
-    if (activeNotes === 0 && isAudioEnded) { 
-        isPlaying = false; 
-        if(bgmAudio) bgmAudio.pause();
-        endGame(); 
-    }
-
+    let isAudioEnded = bgmAudio && bgmAudio.duration ? currentTime > bgmAudio.duration : currentTime > 55;
+    if (activeNotes === 0 && isAudioEnded) { isPlaying = false; if(bgmAudio) bgmAudio.pause(); endGame(); }
     requestAnimationFrame(gameLoop);
 }
 
@@ -455,20 +389,21 @@ function checkHit(type) {
     document.getElementById('txtScore').innerText = score;
 }
 
-function endGame() {
-    document.getElementById('resScore').innerText = `${score} 点`;
-    document.getElementById('resRyo').innerText = countRyo; document.getElementById('resKa').innerText = countKa;
-    nextScreen('screenResult');
-    if (window.currentUser && typeof window.saveScoreToFirebase === 'function') {
-        window.saveScoreToFirebase(selectedGakki, selectedKyoku, score, countRyo, countKa);
-    }
-}
-
 const handlePress = (type) => { playSynthSound(type); checkHit(type); };
+
+document.getElementById('btnLeft').addEventListener('touchstart', (e) => { e.preventDefault(); handlePress(2); });
 document.getElementById('btnDon').addEventListener('touchstart', (e) => { e.preventDefault(); handlePress(1); });
-document.getElementById('btnKa').addEventListener('touchstart', (e) => { e.preventDefault(); handlePress(2); });
+document.getElementById('btnRight').addEventListener('touchstart', (e) => { e.preventDefault(); handlePress(3); });
+
+document.getElementById('btnLeft').addEventListener('mousedown', () => handlePress(2));
 document.getElementById('btnDon').addEventListener('mousedown', () => handlePress(1));
-document.getElementById('btnKa').addEventListener('mousedown', () => handlePress(2));
+document.getElementById('btnRight').addEventListener('mousedown', () => handlePress(3));
+
+window.addEventListener('keydown', (e) => {
+    if(e.key === 'f' || e.key === 'F') handlePress(1);
+    if(e.key === 'd' || e.key === 'D') handlePress(2);
+    if(e.key === 'j' || e.key === 'J') handlePress(3);
+});
 </script>
 </body>
 </html>
