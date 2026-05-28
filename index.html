@@ -17,9 +17,9 @@
         }
         .active { display: flex; }
         
-        /* 💡 画面の見切れを防ぐため、ゲームプレイ画面は完全に画面全体（100%）にフィットさせる */
+        /* 📱 縦画面でお稽古に集中できるよう、ゲーム画面はスクロール禁止でぴったり固定 */
         #screenGame {
-            height: 100vh; height: -webkit-fill-available; /* iPhoneのバー対策 */
+            height: 100vh; height: -webkit-fill-available;
             overflow: hidden; position: fixed; top: 0; left: 0; padding: 0;
         }
 
@@ -40,20 +40,19 @@
         .form-group label { font-size: 14px; margin-bottom: 5px; color: #ccc; }
         .form-group input { padding: 12px; font-size: 16px; border-radius: 8px; border: 1px solid #fff; background: #333; color: white; }
 
-        /* --- 🏮 ゲーム画面レイアウトの黄金比率調整（見切れ・隙間対策） --- */
-        #gameTopArea { width: 100vw; height: 40vh; display: flex; justify-content: center; align-items: center; background: #111; position: relative; }
-        #gameCanvas { display: block; background: #222; width: 100vw; height: 25vh; }
-        #controls { display: flex; width: 100vw; height: 35vh; } /* 💡 隙間を埋めるため縦幅を35vhに微調整 */
+        /* --- 縦向き画面用の三等分レイアウト調整 --- */
+        #gameTopArea { width: 100vw; height: 38vh; display: flex; justify-content: center; align-items: center; background: #111; position: relative; }
+        #gameCanvas { display: block; background: #222; width: 100vw; height: 22vh; }
+        #controls { display: flex; width: 100vw; height: 40vh; } /* ボタンを押しやすくするため下部を広めに */
         
         .hit-btn {
             flex: 1; border: none; color: white;
             display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;
             box-sizing: border-box; border-right: 1px solid #222;
-            padding-bottom: env(safe-area-inset-bottom); /* スマホの下部バーの隙間を吸収 */
+            padding-bottom: env(safe-area-inset-bottom);
         }
-        /* 💡 文字の大きさにメリハリをつける指定 */
-        .hit-btn-title { font-size: 32px; font-weight: bold; margin-bottom: 2px; }
-        .hit-btn-sub { font-size: 13px; opacity: 0.7; font-weight: normal; }
+        .hit-btn-title { font-size: 36px; font-weight: bold; margin-bottom: 4px; }
+        .hit-btn-sub { font-size: 14px; opacity: 0.7; font-weight: normal; }
 
         #btnLeft { background-color: #337ab7; }
         #btnDon  { background-color: #d9534f; }
@@ -148,12 +147,9 @@
         <h1>🏮 油屋町 囃子稽古アプリ 🏮</h1>
         <div id="userStatus">読み込み中...</div>
         <button class="btn" onclick="nextScreen('screenGakki')">稽古を始める</button>
-        
-        
         <button id="myPageBtn" class="btn btn-blue btn-disabled" onclick="if(window.currentUser){ nextScreen('screenHistory'); window.loadHistory(); }">マイページ (履歴)</button>
         <button id="gotoLoginBtn" class="btn btn-gold" onclick="nextScreen('screenAuth')">ログイン画面へ</button>
         <button id="logoutBtn" class="btn" style="background:#555; display:none;" onclick="window.logout()">ログアウト</button>
-        <button class="btn btn-gold" onclick="window.requestLandscape()" style="border-color: gold;">🔄 全画面表示（横向き固定）</button>
     </div>
 
     <div id="screenAuth" class="screen">
@@ -205,7 +201,7 @@
             </div>
             
             <button onclick="window.abortGame()" style="position: absolute; top: 12px; right: 12px; background: rgba(217,83,79,0.8); color: white; border: 1px solid white; padding: 6px 12px; border-radius: 5px; font-weight: bold; z-index: 10; cursor: pointer;">
-                中断して戻る
+                中断
             </button>
                 
             <svg id="kaneSvg" width="180" height="180" viewBox="0 0 200 200" style="overflow: visible;">
@@ -237,12 +233,15 @@
         <div id="controls">
             <div id="btnLeft" class="hit-btn">
                 <span class="hit-btn-title">左</span>
+                <span class="hit-btn-sub">2 / D</span>
             </div>
             <div id="btnDon" class="hit-btn">
                 <span class="hit-btn-title">中</span>
+                <span class="hit-btn-sub">1 / F</span>
             </div>
             <div id="btnRight" class="hit-btn">
                 <span class="hit-btn-title">右</span>
+                <span class="hit-btn-sub">3 / J</span>
             </div>
         </div>
     </div>
@@ -279,7 +278,7 @@ const hayashiScores = {
         "小鉦・大鉦": [
             { time: 8.917, type: 1 }, { time: 9.908, type: 2 }, { time: 10.389, type: 3 }, { time: 10.917, type: 2 },
             { time: 12.911, type: 2 }, { time: 13.939, type: 3 }, { time: 14.920, type: 2 },
-            { time: 16.959, type: 2 }, { time: 17.964, type: 3 }, { time: 18.954, type: 2 },
+            { time: 16.959, type: 2 }, { time: 17.964, stroke: "", type: 3 }, { time: 18.954, type: 2 },
             { time: 20.946, type: 1 }, { time: 21.833, type: 2 }, { time: 22.286, type: 3 }, { time: 22.777, type: 2 },
             { time: 24.928, type: 1 }, { time: 26.758, type: 1 },
             { time: 28.893, type: 1 }, { time: 29.774, type: 2 }, { time: 30.294, type: 3 }, { time: 30.760, type: 2 },
@@ -308,7 +307,7 @@ let judgeText = ""; let judgeTextTimer = 0;
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight * 0.25; }
+function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight * 0.22; }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 
 window.nextScreen = (screenId) => {
@@ -316,21 +315,6 @@ window.nextScreen = (screenId) => {
     document.getElementById(screenId).classList.add('active');
     window.scrollTo(0, 0); 
 }
-
-window.requestLandscape = () => {
-    const docEl = document.documentElement;
-    const requestFullscreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullscreen || docEl.msRequestFullscreen;
-    
-    if (requestFullscreen) {
-        requestFullscreen.call(docEl).then(() => {
-            if (screen.orientation && screen.orientation.lock) {
-                screen.orientation.lock('landscape').catch(() => {});
-            }
-        }).catch((err) => {
-            alert("全画面化に失敗しました。端末の画面回転ロックを解除して横向きにしてください。");
-        });
-    }
-};
 
 window.selectGakki = (gakki) => {
     selectedGakki = gakki;
@@ -347,7 +331,7 @@ window.selectGakki = (gakki) => {
 window.selectLevel = (level) => { selectedLevel = level; startGame(); }
 
 window.abortGame = () => {
-    if (confirm("お稽古を中断してメニューに戻りますか？（スコアは保存されません）")) {
+    if (confirm("お稽古を中断してメニューに戻りますか？")) {
         isPlaying = false;
         if (bgmAudio) { bgmAudio.pause(); bgmAudio.currentTime = 0; }
         window.nextScreen('screenMenu');
