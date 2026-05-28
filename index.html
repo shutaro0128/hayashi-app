@@ -1,222 +1,474 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>お囃子練習アプリ（スマホ版）</title>
+    <title>油屋町川船 囃子練習アプリ</title>
     <style>
-        /* スマホ向けに画面を固定し、誤タッチによる拡大などを防ぐ */
         body {
-            margin: 0;
-            padding: 0;
-            background-color: #1a1a1a;
-            color: white;
-            font-family: sans-serif;
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
+            margin: 0; padding: 0; background-color: #1a1a1a; color: white;
+            font-family: sans-serif; overflow: hidden; user-select: none; -webkit-user-select: none;
         }
-
-        /* ゲーム画面（レーン） */
-        #gameCanvas {
-            display: block;
-            background: #222;
-            width: 100vw;
-            height: 40vh; /* 画面の上40%をゲーム画面に */
+        .screen {
+            display: none; width: 100vw; height: 100vh;
+            flex-direction: column; align-items: center; justify-content: center;
+            box-sizing: border-box; padding: 20px;
         }
-
-        /* スマホ用タッチボタンエリア */
-        #controls {
-            display: flex;
-            width: 100vw;
-            height: 60vh; /* 画面の下60%を叩くエリアに */
-        }
-
-        .hit-btn {
-            flex: 1;
-            border: none;
-            outline: none;
-            font-size: 24px;
-            font-weight: bold;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-        }
-
-        /* お囃子をイメージした赤と青のボタン */
-        #btnDon { background-color: #d9534f; } /* ドン（面） */
-        #btnKa  { background-color: #337ab7; } /* カッ（フチ・鉦など） */
+        .active { display: flex; }
+        h1, h2 { margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.6); text-align: center; }
         
-        .hit-btn:active {
-            opacity: 0.7;
+        .btn {
+            width: 80%; max-width: 300px; padding: 15px 20px; margin: 10px 0;
+            font-size: 18px; font-weight: bold; text-align: center;
+            background: #d9534f; border: 2px solid #fff; border-radius: 30px;
+            color: white; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
+        .btn:active { transform: scale(0.98); opacity: 0.9; }
+        .btn-blue { background: #337ab7; }
+        .btn-gold { background: #f0ad4e; }
+        .btn-disabled { background: #555 !important; border-color: #888; cursor: not-allowed; }
 
-        #startOverlay {
-            position: absolute;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
+        .form-group { width: 80%; max-width: 300px; margin-bottom: 15px; display: flex; flex-direction: column; }
+        .form-group label { font-size: 14px; margin-bottom: 5px; color: #ccc; }
+        .form-group input { padding: 12px; font-size: 16px; border-radius: 8px; border: 1px solid #fff; background: #333; color: white; }
+
+        #gameCanvas { display: block; background: #222; width: 100vw; height: 40vh; }
+        #controls { display: flex; width: 100vw; height: 60vh; }
+        .hit-btn {
+            flex: 1; border: none; font-size: 24px; font-weight: bold; color: white;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
         }
-        #startBtn {
-            padding: 20px 40px; font-size: 24px; background: #f0ad4e; border: none; border-radius: 10px; cursor: pointer;
+        #btnDon { background-color: #d9534f; }
+        #btnKa  { background-color: #337ab7; }
+        
+        #infoOverlay {
+            position: absolute; top: 10px; left: 10px; font-size: 16px;
+            background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 5px; z-index: 5;
         }
+        #userStatus { font-size: 14px; margin-bottom: 20px; color: #ccc; }
+        #historyList { width: 100%; max-width: 400px; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 10px; }
+        .history-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #444; font-size: 14px; }
     </style>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // 🔥【重要】ここにFirebaseの設定情報を貼り付けてください
+        const firebaseConfig = {
+            apiKey: "AIzaSyBQQqFm-kDQYz4dFLyGBWYAWSqbA6wiHbE",
+            authDomain: "aburayamachi-2026.firebaseapp.com",
+            projectId: "aburayamachi-2026",
+            storageBucket: "aburayamachi-2026.firebasestorage.app",
+            messagingSenderId: "738692786732",
+            appId: "1:738692786732:web:a342aba9e2a4a94a483f89",
+            measurementId: "G-2GK0RX2P9V"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // ログイン処理
+        window.handleLogin = () => {
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    alert("ログインしました！お稽古を始めましょう。");
+                    window.nextScreen('screenMenu');
+                })
+                .catch((error) => {
+                    alert("ログインできませんでした。IDまたはパスワードが間違っているか、登録されていません。");
+                });
+        };
+
+        window.logout = () => {
+            signOut(auth).then(() => alert("ログアウトしました"));
+        };
+
+        // ログイン状態の監視
+        onAuthStateChanged(auth, (user) => {
+            const gotoLoginBtn = document.getElementById('gotoLoginBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const myPageBtn = document.getElementById('myPageBtn');
+            const userStatus = document.getElementById('userStatus');
+
+            if (user) {
+                window.currentUser = user;
+                const userName = user.email.split('@')[0];
+                userStatus.innerText = `お稽古中: ${userName} さん`;
+                gotoLoginBtn.style.display = "none";
+                logoutBtn.style.display = "block";
+                myPageBtn.classList.remove('btn-disabled');
+            } else {
+                window.currentUser = null;
+                userStatus.innerText = "ゲストモード（スコアは保存されません）";
+                gotoLoginBtn.style.display = "block";
+                logoutBtn.style.display = "none";
+                myPageBtn.classList.add('btn-disabled');
+            }
+        });
+
+        // スコア保存
+        window.saveScoreToFirebase = async (gakki, kyoku, score, ryo, ka) => {
+            if (!window.currentUser) return;
+            try {
+                await addDoc(collection(db, "scores"), {
+                    uid: window.currentUser.uid,
+                    userEmail: window.currentUser.email,
+                    gakki: gakki,
+                    kyoku: kyoku,
+                    score: score,
+                    ryo: ryo,
+                    ka: ka,
+                    timestamp: new Date()
+                });
+            } catch (e) { console.error("データ保存エラー: ", e); }
+        };
+
+        // 履歴読み込み
+        window.loadHistory = async () => {
+            if (!window.currentUser) return;
+            const listDiv = document.getElementById('historyList');
+            listDiv.innerHTML = "読み込み中...";
+            
+            const q = query(
+                collection(db, "scores"),
+                where("uid", "==", window.currentUser.uid),
+                orderBy("timestamp", "desc"),
+                limit(10)
+            );
+            
+            const querySnapshot = await getDocs(q);
+            listDiv.innerHTML = "";
+            if(querySnapshot.empty) { listDiv.innerHTML = "まだ履歴がありません。"; }
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                const item = document.createElement('div');
+                item.className = "history-item";
+                item.innerHTML = `<span>${data.kyoku}(${data.gakki})</span> <strong>${data.score}点</strong>`;
+                listDiv.appendChild(item);
+            });
+        };
+    </script>
 </head>
 <body>
 
-    <div id="startOverlay">
-        <button id="startBtn">画面をタップして開始</button>
+    <div id="screenMenu" class="screen active">
+        <h1>🏮 お囃子練習アプリ 🏮</h1>
+        <div id="userStatus">読み込み中...</div>
+        <button class="btn" onclick="nextScreen('screenGakki')">稽古を始める</button>
+        <button id="myPageBtn" class="btn btn-blue btn-disabled" onclick="if(window.currentUser){ nextScreen('screenHistory'); window.loadHistory(); }">マイページ (履歴)</button>
+        <button id="gotoLoginBtn" class="btn btn-gold" onclick="nextScreen('screenAuth')">ログイン画面へ</button>
+        <button id="logoutBtn" class="btn" style="background:#555; display:none;" onclick="window.logout()">ログアウト</button>
     </div>
 
-    <canvas id="gameCanvas"></canvas>
+    <div id="screenAuth" class="screen">
+        <h2>門下生 ログイン</h2>
+        <p style="font-size: 14px; color: #aaa; margin-top: -10px; margin-bottom: 20px;">※配布されたお稽古用IDとパスワードを入力してください</p>
+        <div class="form-group">
+            <label>お稽古用ID (メールアドレス形式)</label>
+            <input type="email" id="authEmail" placeholder="taro@hayashi.com">
+        </div>
+        <div class="form-group">
+            <label>パスワード</label>
+            <input type="password" id="authPassword" placeholder="******">
+        </div>
+        <button class="btn btn-blue" onclick="window.handleLogin()">ログインする</button>
+        <button class="btn" style="background:#555;" onclick="nextScreen('screenMenu')">戻る</button>
+    </div>
 
-    <div id="controls">
-        <div id="btnDon" class="hit-btn">ドン (左)</div>
-        <div id="btnKa" class="hit-btn">カッ (右)</div>
+    <div id="screenHistory" class="screen">
+        <h2>過去の稽古履歴 (最新10件)</h2>
+        <div id="historyList"></div>
+        <button class="btn" style="background:#555;" onclick="nextScreen('screenMenu')">メニューに戻る</button>
+    </div>
+
+    <div id="screenGakki" class="screen">
+        <h2>どの楽器を奏でますか？</h2>
+        <button class="btn" onclick="selectGakki('大太鼓')">🥁 大太鼓（おおだいこ）</button>
+        <button class="btn btn-blue" onclick="selectGakki('〆太鼓')">🪘 〆太鼓（しめだいこ）</button>
+        <button class="btn btn-gold" onclick="selectGakki('鉦')">🔔 小鐘・大鐘 (こがね・おおがね)</button>
+        <button class="btn" style="background:#555;" onclick="nextScreen('screenMenu')">戻る</button>
+    </div>
+
+    <div id="screenKyoku" class="screen">
+        <h2>曲を選んでください</h2>
+        <div id="kyokuList" style="width: 100%; display: flex; flex-direction: column; align-items: center;"></div>
+        <button class="btn" style="background:#555;" onclick="nextScreen('screenGakki')">戻る</button>
+    </div>
+
+    <div id="screenGame" class="screen" style="padding:0; justify-content:flex-start;">
+        <div id="infoOverlay">
+            <span id="txtGakki"></span> - <span id="txtKyoku"></span><br>
+            <span>スコア: <span id="txtScore">0</span></span>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="controls">
+            <div id="controls">
+            <div id="btnLeft" class="hit-btn">左<br></div>
+            <div id="btnDon" class="hit-btn">中<br></div>
+            <div id="btnRight" class="hit-btn">右<br></div>
+        </div>
+        </div>
+    </div>
+
+    <div id="screenResult" class="screen">
+        <h2>お稽古終了！</h2>
+        <h1 id="resScore" style="color:#f0ad4e; font-size: 48px;">0 点</h1>
+        <div style="font-size: 20px; margin-bottom: 30px;">
+            良: <span id="resRyo" style="color:#d9534f; font-weight:bold;">0</span> 回 / 
+            可: <span id="resKa" style="color:#337ab7; font-weight:bold;">0</span> 回
+        </div>
+        <button class="btn" onclick="nextScreen('screenMenu')">メニューに戻る</button>
     </div>
 
 <script>
+// --- ⚙️ 新しい7曲のデータ構造 ⚙️ ---
+const kyokuMasta = ["道行き", "はしり", "まわし", "根曳唄", "網打ち", "網待ち", "打ち込み"];
+
+// 各曲のBGM音声ファイルへの紐付け (.m4a形式)
+const bgmUrls = {
+    "道行き": "audio/michiyuki.m4a",
+    "はしり": "audio/hashiri.m4a",
+    "まわし": "audio/mawashi.m4a",
+    "根曳唄": "audio/nebikiuta_1.mp3",
+    "網打ち": "audio/amiuchi.m4a",
+    "網待ち": "audio/amimachi.m4a",
+    "打ち込み": "audio/uchikomi.m4a"
+};
+
+// 🥁 楽譜データ（ここを今後埋めていってください）
+const hayashiScores = {
+    "道行き": {
+        "大太鼓": [], "〆太鼓": [], "鉦": []
+    },
+    "はしり": {
+        "大太鼓": [], "〆太鼓": [], "鉦": []
+    },
+    "まわし": {
+        "大太鼓": [], "〆太鼓": [], "鉦": []
+    },
+    "根曳唄": {
+        "大太鼓": [], 
+        "〆太鼓": [], 
+         // 1: center 2:left 3:right
+         "鐘": [
+            //fu ne wa
+            { time: 8.917, type: 1 },//e
+            { time: 9.908, type: 2 },  
+            { time: 10.389, type: 3 },
+            { time: 10.917, type: 2 },
+            //sa ka
+            { time: 12.911, type: 2 },  //ma
+            { time: 13.939, type: 3 },//a
+            { time: 14.920, type: 2 },//ku
+            //na ga
+            { time: 16.959, type: 2 },//re
+            { time: 17.964, type: 3 },//wo
+            { time: 18.954, type: 2 },//o
+            //nobo
+            { time: 20.946, type: 1 },//ru
+            { time: 21.833, type: 2 },
+            { time: 22.286, type: 3 },
+            { time: 22.777, type: 2 },
+            //ah 
+            { time: 24.928, type: 1 },//yo-i yoi
+            { time: 26.758, type: 1 },//yo-i yoi
+            //a re wa 
+            { time: 28.893, type: 1 },//e
+            { time: 29.774, type: 2 },  
+            { time: 30.294, type: 3 },
+            { time: 30.760, type: 2 },
+            //a re wa 
+            { time: 32.629, type: 1 },//e
+            //abu
+            { time: 34.537, type: 2 },  //ra
+            { time: 35.431, type: 3 },//ya
+            { time: 36.458, type: 2 },//a
+            //kaa wa
+            { time: 38.220, type: 1 },//a
+            //fu ne ja
+            { time: 41.753, type: 2 },  //e
+            { time: 42.673, type: 3 },
+            { time: 43.607, type: 2 },
+            //sa
+            { time: 45.456, type: 1 },//yo
+            { time: 46.334, type: 2 },  //i
+            { time: 46.768, type: 3 },//ya
+            { time: 47.230, type: 2 },//sa
+            //ah 
+            { time: 49.277, type: 2 }, //yo
+            { time: 50.362, type: 3 },//ya
+            { time: 51.334, type: 2 },//se
+
+        ]
+    },
+    "網打ち": {
+        "大太鼓": [], "〆太鼓": [], "鉦": []
+    },
+    "網待ち": {
+        "大太鼓": [], "〆太鼓": [], "鉦": []
+    },
+    "打ち込み": {
+        "大太鼓": [], "〆太鼓": [], "鉦": []
+    }
+};
+
+// --- ゲーム制御システム ---
+let selectedGakki = ""; let selectedKyoku = ""; let startTime = 0; let isPlaying = false;
+const JUDGE_X = 80; const NOTE_SPEED = 250;
+let score = 0; let countRyo = 0; let countKa = 0; let judgeText = ""; let judgeTextTimer = 0;
+let currentNotes = [];
+let bgmAudio = null;
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight * 0.4; }
+window.addEventListener('resize', resizeCanvas); resizeCanvas();
 
-// 画面解像度の調整
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight * 0.4;
+window.nextScreen = (screenId) => {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(screenId).classList.add('active');
 }
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
 
-// --- 1. お囃子の譜面データ（例：大太鼓） ---
-// time: 判定線に重なる秒数, type: 1(ドン), 2(カッ)
-const notes = [
-    { time: 2.0, type: 1 },
-    { time: 2.5, type: 1 },
-    { time: 3.0, type: 2 },
-    { time: 3.5, type: 1 },
-    { time: 4.0, type: 1 },
-    { time: 4.5, type: 2 },
-    { time: 5.0, type: 1 }
-];
+window.selectGakki = (gakki) => {
+    selectedGakki = gakki;
+    const listDiv = document.getElementById('kyokuList');
+    listDiv.innerHTML = "";
+    kyokuMasta.forEach(kyoku => {
+        const button = document.createElement('button');
+        button.className = "btn btn-blue";
+        button.innerText = kyoku;
+        button.onclick = () => startGame(kyoku);
+        listDiv.appendChild(button);
+    });
+    nextScreen('screenKyoku');
+}
 
-let startTime = 0;
-let isPlaying = false;
-const JUDGE_X = 80;        // 判定線のX座標（画面左端）
-const NOTE_SPEED = 250;    // 1秒間に左へ進むピクセル数
+function startGame(kyoku) {
+    selectedKyoku = kyoku;
+    document.getElementById('txtGakki').innerText = selectedGakki;
+    document.getElementById('txtKyoku').innerText = selectedKyoku;
+    score = 0; countRyo = 0; countKa = 0; judgeText = "";
+    document.getElementById('txtScore').innerText = "0";
 
-// --- 2. 音声の準備（Web Audio API） ---
-// 本番はここに録音した大太鼓や鉦のファイルを割り当てます
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-function playSynthSound(type) {
-    // 簡易的なビープ音（テスト用）
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    
-    if (type === 1) { // ドン（低い音）
-        osc.frequency.setValueAtTime(120, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-    } else {          // カッ（高い音）
-        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    // 楽譜データベースから、選択された[曲]と[楽器]のデータを読み込む
+    if (hayashiScores[selectedKyoku] && hayashiScores[selectedKyoku][selectedGakki]) {
+        currentNotes = JSON.parse(JSON.stringify(hayashiScores[selectedKyoku][selectedGakki]));
+    } else {
+        currentNotes = [];
     }
-    osc.start();
-    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+    nextScreen('screenGame');
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
+    // BGMの読み込みと再生処理
+    if (bgmAudio) { bgmAudio.pause(); }
+    bgmAudio = new Audio(bgmUrls[selectedKyoku]);
+    bgmAudio.preload = "auto";
+    
+    bgmAudio.addEventListener('canplaythrough', () => {
+        setTimeout(() => {
+            bgmAudio.play();
+            startTime = performance.now();
+            isPlaying = true;
+            gameLoop();
+        }, 1000);
+    }, { once: true });
+
+    // 音声ファイルの読み込みに失敗・またはファイルがない場合でもゲームが動くようにする安全装置
+    bgmAudio.addEventListener('error', () => {
+        console.log("BGMファイルが読み込めないか、まだ配置されていません。無音で開始します。");
+        startTime = performance.now();
+        isPlaying = true;
+        gameLoop();
+    }, { once: true });
+}
+
+// 叩いた時の効果音（Web Audio API）
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSynthSound(type) {
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    
+    // プレイ中の楽器に応じて音の高さを少しだけ自動調整
+    let freq = type === 1 ? 120 : 300;
+    if (selectedGakki === "鉦") { freq = type === 1 ? 600 : 900; } // 鉦は高めのキンキンした音に
+    
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    osc.start(); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
     osc.stop(audioCtx.currentTime + 0.1);
 }
 
-// --- 3. メインループ（描画） ---
 function gameLoop() {
     if (!isPlaying) return;
-
     const currentTime = (performance.now() - startTime) / 1000;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     const centerY = canvas.height / 2;
 
-    // レーン（背景線）
-    ctx.strokeStyle = '#555';
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(0, centerY);
-    ctx.lineTo(canvas.width, centerY);
-    ctx.stroke();
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(0, centerY); ctx.lineTo(canvas.width, centerY); ctx.stroke();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(JUDGE_X, centerY, 30, 0, Math.PI * 2); ctx.stroke();
 
-    // 判定枠の描画
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(JUDGE_X, centerY, 30, 0, Math.PI * 2);
-    ctx.stroke();
+    if (judgeTextTimer > 0) {
+        ctx.fillStyle = judgeText === "良" ? "#ff0" : "#0f0"; ctx.font = "bold 30px sans-serif"; ctx.textAlign = "center";
+        ctx.fillText(judgeText, JUDGE_X, centerY - 50); judgeTextTimer--;
+    }
 
-    // ノーツの動的計算と描画
-    notes.forEach(note => {
+    let activeNotes = 0;
+    currentNotes.forEach(note => {
         if (note.isHit) return;
-
-        // X座標 ＝ (本来の時間 - 現在の時間) * スピード + 判定位置
+        activeNotes++;
         const x = (note.time - currentTime) * NOTE_SPEED + JUDGE_X;
-
         if (x > -30 && x < canvas.width + 30) {
             ctx.fillStyle = note.type === 1 ? '#d9534f' : '#337ab7';
-            ctx.beginPath();
-            ctx.arc(x, centerY, 25, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.beginPath(); ctx.arc(x, centerY, 25, 0, Math.PI * 2); ctx.fill();
         }
     });
+
+    // 全てのノーツが流れる、または音楽が終わったらリザルトへ
+    let isAudioEnded = bgmAudio && bgmAudio.duration ? currentTime > bgmAudio.duration : currentTime > 10;
+    if (activeNotes === 0 && isAudioEnded) { 
+        isPlaying = false; 
+        if(bgmAudio) bgmAudio.pause();
+        endGame(); 
+    }
 
     requestAnimationFrame(gameLoop);
 }
 
-// --- 4. 判定ロジック ---
 function checkHit(type) {
     if (!isPlaying) return;
     const currentTime = (performance.now() - startTime) / 1000;
-
-    for (let note of notes) {
+    for (let note of currentNotes) {
         if (!note.isHit && note.type === type) {
             const diff = Math.abs(note.time - currentTime);
-            if (diff < 0.15) { // 0.15秒以内のズレなら合格
-                note.isHit = true;
-                break;
+            if (diff < 0.06) {
+                note.isHit = true; score += 1000; countRyo++; judgeText = "良"; judgeTextTimer = 30; break;
+            } else if (diff < 0.15) {
+                note.isHit = true; score += 500; countKa++; judgeText = "可"; judgeTextTimer = 30; break;
             }
         }
     }
+    document.getElementById('txtScore').innerText = score;
 }
 
-// --- 5. イベント登録（スマホのタッチ対応） ---
-document.getElementById('startBtn').addEventListener('click', () => {
-    document.getElementById('startOverlay').style.display = 'none';
-    if (audioCtx.state === 'suspended') audioCtx.resume(); // スマホの音声制限解除
-    
-    startTime = performance.now();
-    isPlaying = true;
-    gameLoop();
-});
+function endGame() {
+    document.getElementById('resScore').innerText = `${score} 点`;
+    document.getElementById('resRyo').innerText = countRyo; document.getElementById('resKa').innerText = countKa;
+    nextScreen('screenResult');
+    if (window.currentUser && typeof window.saveScoreToFirebase === 'function') {
+        window.saveScoreToFirebase(selectedGakki, selectedKyoku, score, countRyo, countKa);
+    }
+}
 
-// スマホで遅延なく反応させるため mousedown/touchstart の両方に対応
-const handlePress = (type) => {
-    playSynthSound(type);
-    checkHit(type);
-};
-
+const handlePress = (type) => { playSynthSound(type); checkHit(type); };
 document.getElementById('btnDon').addEventListener('touchstart', (e) => { e.preventDefault(); handlePress(1); });
 document.getElementById('btnKa').addEventListener('touchstart', (e) => { e.preventDefault(); handlePress(2); });
-// PCテスト用
 document.getElementById('btnDon').addEventListener('mousedown', () => handlePress(1));
 document.getElementById('btnKa').addEventListener('mousedown', () => handlePress(2));
-
-// キーボード操作（PCテスト用：Fでドン、Jでカッ）
-window.addEventListener('keydown', (e) => {
-    if(e.key === 'f' || e.key === 'F') handlePress(1);
-    if(e.key === 'j' || e.key === 'J') handlePress(2);
-});
 </script>
 </body>
 </html>
