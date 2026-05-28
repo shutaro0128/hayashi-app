@@ -1,0 +1,222 @@
+    <!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>お囃子練習アプリ（スマホ版）</title>
+    <style>
+        /* スマホ向けに画面を固定し、誤タッチによる拡大などを防ぐ */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: white;
+            font-family: sans-serif;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* ゲーム画面（レーン） */
+        #gameCanvas {
+            display: block;
+            background: #222;
+            width: 100vw;
+            height: 40vh; /* 画面の上40%をゲーム画面に */
+        }
+
+        /* スマホ用タッチボタンエリア */
+        #controls {
+            display: flex;
+            width: 100vw;
+            height: 60vh; /* 画面の下60%を叩くエリアに */
+        }
+
+        .hit-btn {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        /* お囃子をイメージした赤と青のボタン */
+        #btnDon { background-color: #d9534f; } /* ドン（面） */
+        #btnKa  { background-color: #337ab7; } /* カッ（フチ・鉦など） */
+        
+        .hit-btn:active {
+            opacity: 0.7;
+        }
+
+        #startOverlay {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        #startBtn {
+            padding: 20px 40px; font-size: 24px; background: #f0ad4e; border: none; border-radius: 10px; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="startOverlay">
+        <button id="startBtn">画面をタップして開始</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="controls">
+        <div id="btnDon" class="hit-btn">ドン (左)</div>
+        <div id="btnKa" class="hit-btn">カッ (右)</div>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// 画面解像度の調整
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight * 0.4;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// --- 1. お囃子の譜面データ（例：大太鼓） ---
+// time: 判定線に重なる秒数, type: 1(ドン), 2(カッ)
+const notes = [
+    { time: 2.0, type: 1 },
+    { time: 2.5, type: 1 },
+    { time: 3.0, type: 2 },
+    { time: 3.5, type: 1 },
+    { time: 4.0, type: 1 },
+    { time: 4.5, type: 2 },
+    { time: 5.0, type: 1 }
+];
+
+let startTime = 0;
+let isPlaying = false;
+const JUDGE_X = 80;        // 判定線のX座標（画面左端）
+const NOTE_SPEED = 250;    // 1秒間に左へ進むピクセル数
+
+// --- 2. 音声の準備（Web Audio API） ---
+// 本番はここに録音した大太鼓や鉦のファイルを割り当てます
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSynthSound(type) {
+    // 簡易的なビープ音（テスト用）
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    if (type === 1) { // ドン（低い音）
+        osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+    } else {          // カッ（高い音）
+        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    }
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+    osc.stop(audioCtx.currentTime + 0.1);
+}
+
+// --- 3. メインループ（描画） ---
+function gameLoop() {
+    if (!isPlaying) return;
+
+    const currentTime = (performance.now() - startTime) / 1000;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const centerY = canvas.height / 2;
+
+    // レーン（背景線）
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(0, centerY);
+    ctx.lineTo(canvas.width, centerY);
+    ctx.stroke();
+
+    // 判定枠の描画
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(JUDGE_X, centerY, 30, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // ノーツの動的計算と描画
+    notes.forEach(note => {
+        if (note.isHit) return;
+
+        // X座標 ＝ (本来の時間 - 現在の時間) * スピード + 判定位置
+        const x = (note.time - currentTime) * NOTE_SPEED + JUDGE_X;
+
+        if (x > -30 && x < canvas.width + 30) {
+            ctx.fillStyle = note.type === 1 ? '#d9534f' : '#337ab7';
+            ctx.beginPath();
+            ctx.arc(x, centerY, 25, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+
+    requestAnimationFrame(gameLoop);
+}
+
+// --- 4. 判定ロジック ---
+function checkHit(type) {
+    if (!isPlaying) return;
+    const currentTime = (performance.now() - startTime) / 1000;
+
+    for (let note of notes) {
+        if (!note.isHit && note.type === type) {
+            const diff = Math.abs(note.time - currentTime);
+            if (diff < 0.15) { // 0.15秒以内のズレなら合格
+                note.isHit = true;
+                break;
+            }
+        }
+    }
+}
+
+// --- 5. イベント登録（スマホのタッチ対応） ---
+document.getElementById('startBtn').addEventListener('click', () => {
+    document.getElementById('startOverlay').style.display = 'none';
+    if (audioCtx.state === 'suspended') audioCtx.resume(); // スマホの音声制限解除
+    
+    startTime = performance.now();
+    isPlaying = true;
+    gameLoop();
+});
+
+// スマホで遅延なく反応させるため mousedown/touchstart の両方に対応
+const handlePress = (type) => {
+    playSynthSound(type);
+    checkHit(type);
+};
+
+document.getElementById('btnDon').addEventListener('touchstart', (e) => { e.preventDefault(); handlePress(1); });
+document.getElementById('btnKa').addEventListener('touchstart', (e) => { e.preventDefault(); handlePress(2); });
+// PCテスト用
+document.getElementById('btnDon').addEventListener('mousedown', () => handlePress(1));
+document.getElementById('btnKa').addEventListener('mousedown', () => handlePress(2));
+
+// キーボード操作（PCテスト用：Fでドン、Jでカッ）
+window.addEventListener('keydown', (e) => {
+    if(e.key === 'f' || e.key === 'F') handlePress(1);
+    if(e.key === 'j' || e.key === 'J') handlePress(2);
+});
+</script>
+</body>
+</html>
