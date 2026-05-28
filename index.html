@@ -17,9 +17,10 @@
         }
         .active { display: flex; }
         
-        /* ゲーム画面はプレイ中のみ固定 */
+        /* 💡 画面の見切れを防ぐため、ゲームプレイ画面は完全に画面全体（100%）にフィットさせる */
         #screenGame {
-            height: 100vh; overflow: hidden; position: fixed; top: 0; left: 0;
+            height: 100vh; height: -webkit-fill-available; /* iPhoneのバー対策 */
+            overflow: hidden; position: fixed; top: 0; left: 0; padding: 0;
         }
 
         h1, h2 { margin-top: 10px; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.6); text-align: center; }
@@ -39,16 +40,20 @@
         .form-group label { font-size: 14px; margin-bottom: 5px; color: #ccc; }
         .form-group input { padding: 12px; font-size: 16px; border-radius: 8px; border: 1px solid #fff; background: #333; color: white; }
 
-        /* --- 🏮 ゲーム画面レイアウト 🏮 --- */
-        #gameTopArea { width: 100vw; height: 35vh; display: flex; justify-content: center; align-items: center; background: #111; position: relative; }
+        /* --- 🏮 ゲーム画面レイアウトの黄金比率調整（見切れ・隙間対策） --- */
+        #gameTopArea { width: 100vw; height: 40vh; display: flex; justify-content: center; align-items: center; background: #111; position: relative; }
         #gameCanvas { display: block; background: #222; width: 100vw; height: 25vh; }
+        #controls { display: flex; width: 100vw; height: 35vh; } /* 💡 隙間を埋めるため縦幅を35vhに微調整 */
         
-        #controls { display: flex; width: 100vw; height: 25vh; } 
         .hit-btn {
-            flex: 1; border: none; font-size: 32px; font-weight: bold; color: white;
+            flex: 1; border: none; color: white;
             display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;
             box-sizing: border-box; border-right: 1px solid #222;
+            padding-bottom: env(safe-area-inset-bottom); /* スマホの下部バーの隙間を吸収 */
         }
+        /* 💡 文字の大きさにメリハリをつける指定 */
+        .hit-btn-title { font-size: 32px; font-weight: bold; margin-bottom: 2px; }
+        .hit-btn-sub { font-size: 13px; opacity: 0.7; font-weight: normal; }
 
         #btnLeft { background-color: #337ab7; }
         #btnDon  { background-color: #d9534f; }
@@ -56,7 +61,7 @@
         .hit-btn:active { opacity: 0.6; }
         
         #infoOverlay {
-            position: absolute; top: 10px; left: 10px; font-size: 14px;
+            position: absolute; top: 12px; left: 12px; font-size: 14px;
             background: rgba(0,0,0,0.7); padding: 6px 10px; border-radius: 5px; z-index: 5;
         }
 
@@ -144,11 +149,11 @@
         <div id="userStatus">読み込み中...</div>
         <button class="btn" onclick="nextScreen('screenGakki')">稽古を始める</button>
         
-        <button class="btn btn-gold" onclick="window.requestLandscape()" style="border-color: gold;">🔄 画面を横向きにする</button>
         
         <button id="myPageBtn" class="btn btn-blue btn-disabled" onclick="if(window.currentUser){ nextScreen('screenHistory'); window.loadHistory(); }">マイページ (履歴)</button>
         <button id="gotoLoginBtn" class="btn btn-gold" onclick="nextScreen('screenAuth')">ログイン画面へ</button>
         <button id="logoutBtn" class="btn" style="background:#555; display:none;" onclick="window.logout()">ログアウト</button>
+        <button class="btn btn-gold" onclick="window.requestLandscape()" style="border-color: gold;">🔄 全画面表示（横向き固定）</button>
     </div>
 
     <div id="screenAuth" class="screen">
@@ -192,18 +197,18 @@
         <button class="btn" style="background:#555;" onclick="nextScreen('screenKyoku')">戻る</button>
     </div>
 
-    <div id="screenGame" class="screen" style="padding:0; justify-content:flex-start;">
+    <div id="screenGame" class="screen">
         <div id="gameTopArea">
             <div id="infoOverlay">
                 <span id="txtGakki"></span> - <span id="txtKyoku"></span> (<span id="txtLevel"></span>)<br>
                 <span>得点: <span id="txtScore">100.0</span> 点</span>
             </div>
             
-            <button onclick="window.abortGame()" style="position: absolute; top: 10px; right: 10px; background: rgba(217,83,79,0.8); color: white; border: 1px solid white; padding: 6px 12px; border-radius: 5px; font-weight: bold; z-index: 10; cursor: pointer;">
+            <button onclick="window.abortGame()" style="position: absolute; top: 12px; right: 12px; background: rgba(217,83,79,0.8); color: white; border: 1px solid white; padding: 6px 12px; border-radius: 5px; font-weight: bold; z-index: 10; cursor: pointer;">
                 中断して戻る
             </button>
                 
-            <svg id="kaneSvg" width="200" height="200" viewBox="0 0 200 200" style="overflow: visible;">
+            <svg id="kaneSvg" width="180" height="180" viewBox="0 0 200 200" style="overflow: visible;">
                 <defs>
                     <clipPath id="circleClip">
                         <circle cx="100" cy="100" r="85" />
@@ -230,9 +235,15 @@
         <canvas id="gameCanvas"></canvas>
         
         <div id="controls">
-            <div id="btnLeft" class="hit-btn">左</div>
-            <div id="btnDon" class="hit-btn">中</div>
-            <div id="btnRight" class="hit-btn">右</div>
+            <div id="btnLeft" class="hit-btn">
+                <span class="hit-btn-title">左</span>
+            </div>
+            <div id="btnDon" class="hit-btn">
+                <span class="hit-btn-title">中</span>
+            </div>
+            <div id="btnRight" class="hit-btn">
+                <span class="hit-btn-title">右</span>
+            </div>
         </div>
     </div>
 
@@ -306,22 +317,17 @@ window.nextScreen = (screenId) => {
     window.scrollTo(0, 0); 
 }
 
-// 💡 ボタンが押されたら、全画面にして自動で横向きに固定する本格処理
 window.requestLandscape = () => {
     const docEl = document.documentElement;
-    // まず全画面モード（Fullscreen API）を起動
     const requestFullscreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullscreen || docEl.msRequestFullscreen;
     
     if (requestFullscreen) {
         requestFullscreen.call(docEl).then(() => {
-            // 全画面化に成功したら、画面を横向きにロック
             if (screen.orientation && screen.orientation.lock) {
-                screen.orientation.lock('landscape').catch(() => {
-                    console.log("ブラウザにより画面ロックが制限されました。");
-                });
+                screen.orientation.lock('landscape').catch(() => {});
             }
         }).catch((err) => {
-            alert("全画面化に失敗しました。スマホ自体の画面回転をオンにして横に傾けてください。");
+            alert("全画面化に失敗しました。端末の画面回転ロックを解除して横向きにしてください。");
         });
     }
 };
