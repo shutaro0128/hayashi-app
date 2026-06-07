@@ -116,26 +116,65 @@
             }
         });
 
-        window.saveScoreToFirebase = async (gakki, kyoku, score, ryo, ka) => {
+        window.saveScoreToFirebase = async (gakki, kyoku, level, score, ryo, ka) => {
             if (!window.currentUser) return;
             try {
                 await addDoc(collection(db, "scores"), {
-                    uid: window.currentUser.uid, userEmail: window.currentUser.email,
-                    gakki: gakki, kyoku: kyoku, score: score, ryo: ryo, ka: ka, timestamp: new Date()
+                    uid: window.currentUser.uid, 
+                    userEmail: window.currentUser.email,
+                    gakki: gakki, 
+                    kyoku: kyoku, 
+                    level: level, // 👈 新しくレベルを保存
+                    score: score, 
+                    ryo: ryo, 
+                    ka: ka, 
+                    timestamp: new Date() // 日時はここで自動保存されています
                 });
             } catch (e) { console.error(e); }
         };
 
         window.loadHistory = async () => {
             if (!window.currentUser) return;
-            const listDiv = document.getElementById('historyList'); listDiv.innerHTML = "読み込み中...";
+            const listDiv = document.getElementById('historyList'); 
+            listDiv.innerHTML = "読み込み中...";
+            
             const q = query(collection(db, "scores"), where("uid", "==", window.currentUser.uid), orderBy("timestamp", "desc"), limit(10));
-            const querySnapshot = await getDocs(q); listDiv.innerHTML = "";
-            if(querySnapshot.empty) { listDiv.innerHTML = "まだ履歴がありません。"; }
+            const querySnapshot = await getDocs(q); 
+            listDiv.innerHTML = "";
+            
+            if(querySnapshot.empty) { 
+                listDiv.innerHTML = "まだ履歴がありません。"; 
+                return;
+            }
+            
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                const item = document.createElement('div'); item.className = "history-item";
-                item.innerHTML = `<span>${data.kyoku}(${data.gakki})</span> <strong>${data.score}点</strong>`;
+                
+                // 📅 タイムスタンプを「◯月◯日 ◯:◯」の形式に変換する処理
+                let dateStr = "";
+                if (data.timestamp) {
+                    const date = data.timestamp.toDate(); // Firebaseの時間をJSの日付に変換
+                    const month = date.getMonth() + 1;
+                    const day = date.getDate();
+                    const hours = String(date.getHours()).padStart(2, '0');
+                    const minutes = String(date.getMinutes()).padStart(2, '0');
+                    dateStr = `${month}/${day} ${hours}:${minutes}`;
+                }
+
+                // 🔰 レベルの表示テキストを設定（データがなければ「1」にする）
+                const displayLevel = data.level ? `Lv.${data.level}` : "Lv.1";
+
+                const item = document.createElement('div'); 
+                item.className = "history-item";
+                
+                // 📄 画面に表示するHTML（日時、曲名、楽器、レベル、点数）
+                item.innerHTML = `
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 11px; color: #aaa;">${dateStr}</span>
+                        <span>${data.kyoku} (${data.gakki}) <span style="color: #f0ad4e; font-size: 12px;">${displayLevel}</span></span>
+                    </div>
+                    <strong style="align-self: center;">${data.score}点</strong>
+                `;
                 listDiv.appendChild(item);
             });
         };
@@ -526,10 +565,13 @@ function checkHit(type) {
 function endGame() {
     const finalScore = calculateCurrentScore();
     document.getElementById('resScore').innerText = `${finalScore} 点`;
-    document.getElementById('resRyo').innerText = countRyo; document.getElementById('resKa').innerText = countKa;
+    document.getElementById('resRyo').innerText = countRyo; 
+    document.getElementById('resKa').innerText = countKa;
     window.nextScreen('screenResult');
+    
     if (window.currentUser && typeof window.saveScoreToFirebase === 'function') {
-        window.saveScoreToFirebase(selectedGakki, selectedKyoku, parseFloat(finalScore), countRyo, countKa);
+        // 👈 引数の3番目に「selectedLevel」を追加します
+        window.saveScoreToFirebase(selectedGakki, selectedKyoku, selectedLevel, parseFloat(finalScore), countRyo, countKa);
     }
 }
 
