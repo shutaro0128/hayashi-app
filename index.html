@@ -233,12 +233,15 @@
         <div id="controls">
             <div id="btnLeft" class="hit-btn">
                 <span class="hit-btn-title">左</span>
+                <span class="hit-btn-sub">2 / D</span>
             </div>
             <div id="btnDon" class="hit-btn">
                 <span class="hit-btn-title">中</span>
+                <span class="hit-btn-sub">1 / F</span>
             </div>
             <div id="btnRight" class="hit-btn">
                 <span class="hit-btn-title">右</span>
+                <span class="hit-btn-sub">3 / J</span>
             </div>
         </div>
     </div>
@@ -255,42 +258,116 @@
 
 <script>
 // --- ⚙️ 楽譜・音声設定データベース ⚙️ ---
-const kyokuMasta = ["道行き", "はしり・まわし", "根曳唄", "網打ち", "網待ち", "打ち込み"];
+const kyokuMasta = ["道行き", "はしり・まわし", "網打ち", "根曳唄"];
 
 const bgmUrls = {
-    "道行き": "audio/michiyuki.m4a", 
-    "はしり・まわし": "audio/hashirimawashi.m4a", 
-    "根曳唄": "audio/nebikiuta_1.mp3", 
-    "網打ち": "audio/amiuchi.m4a", 
-    "網待ち": "audio/amimachi.m4a", 
-    "打ち込み": "audio/uchikomi.m4a",
-    "庭先き": "audio/niwasaki.m4a"
+    "道行き": "audio/michiyuki.mp3", 
+    "はしり・まわし": "audio/hashirimawashi.mp3", 
+    "根曳唄": "audio/nebikiuta.mp3", 
+    "網打ち": "audio/amiuchi.mp3" 
+   // "網待ち": "audio/amimachi.m4a", 
+   // "打ち込み": "audio/uchikomi.m4a",
+    //"庭先き": "audio/niwasaki.m4a"
 };
 
 const hayashiScores = {
     "道行き": { "大太鼓": [], "〆太鼓": [], "小鉦・大鉦": [] },
-    "はしり・まわし": { "大太鼓": [], "〆太鼓": [], "小鉦・大鉦": [] },
+    "はしり・まわし": { "大太鼓": [], "〆太鼓": [], 
+    "小鉦・大鉦": [
+    { time: 8.390310, type: 2 }, { time: 8.617067, type: 3 }, { time: 8.889176, type: 2 },
+
+    { time: 9.478745, type: 2 }, { time: 9.750854, type: 3 }, { time: 10.068314, type: 2 },
+    { time: 10.612532, type: 2 }, { time: 10.884641, type: 3 }, { time: 11.156749, type: 2 },
+    
+    { time: 11.746319, type: 2 }, { time: 12.018427, type: 3 }, { time: 12.335888, type: 2 },
+    { time: 12.834754, type: 2 }, { time: 13.106863, type: 3 }, { time: 13.378972, type: 2 },
+    
+    { time: 13.968541, type: 2 }, { time: 14.240650, type: 3 }, { time: 14.558110, type: 2 },
+    { time: 15.056976, type: 2 }, { time: 15.329085, type: 3 }, { time: 15.601194, type: 2 },
+    
+    { time: 16.100060, type: 2 }, { time: 16.417520, type: 3 }, { time: 16.644278, type: 2 },
+    { time: 17.143144, type: 2 }, { time: 17.460604, type: 3 }, { time: 17.778065, type: 2 },
+
+    { time: 18.231579, type: 2 }, { time: 18.503688, type: 3 }, { time: 18.775797, type: 2 },
+    
+    { time: 19.818881, type: 1 }, { time: 20.408450, type: 2 }, { time: 20.635208, type: 3 }, { time: 20.907316, type: 2 },
+    { time: 21.406183, type: 1 }, { time: 21.905049, type: 1 },
+    
+    { time: 22.993484, type: 1 }, { time: 23.537702, type: 2 }, { time: 23.764459, type: 3 }, { time: 24.036568, type: 2 },
+    { time: 24.580786, type: 1 }, { time: 25.034300, type: 1 },
+    
+    { time: 26.122736, type: 1 }, { time: 26.666954, type: 2 }, { time: 26.893711, type: 3 }, { time: 27.165820, type: 2 },
+    { time: 27.664686, type: 1 }, { time: 28.163552, type: 1 },
+    
+    { time: 29.251988, type: 1 }, { time: 29.796205, type: 2 }, { time: 29.977611, type: 3 }, { time: 30.249720, type: 2 },
+    { time: 30.748586, type: 1 }, { time: 31.247452, type: 1 },
+    
+    
+    { time: 32.245185, type: 1 }, 
+    { time: 32.744051, type: 2 }, { time: 33.016160, type: 3 }, { time: 33.288269, type: 2 },
+    { time: 33.787135, type: 2 }, { time: 34.013892, type: 3 }, { time: 34.286001, type: 2 },
+
+    { time: 34.784867, type: 2 }, { time: 35.011625, type: 3 }, { time: 35.329085, type: 2 },
+    { time: 35.782600, type: 2 }, { time: 36.054709, type: 3 }, { time: 36.326817, type: 2 },
+
+    { time: 36.825684, type: 2 }, { time: 37.052441, type: 3 }, { time: 37.369901, type: 2 },
+    { time: 37.868768, type: 2 }, { time: 38.095525, type: 3 }, { time: 38.367634, type: 2 },
+
+    { time: 38.866500, type: 2 }, { time: 39.093257, type: 3 }, { time: 39.410718, type: 2 },
+    { time: 39.909584, type: 2 }, { time: 40.181693, type: 3 }, { time: 40.408450, type: 2 },
+
+    { time: 40.907316, type: 2 }, { time: 41.179425, type: 3 }, { time: 41.406183, type: 2 },
+    { time: 41.859697, type: 2 }, { time: 42.222509, type: 3 }, { time: 42.494618, type: 2 },
+
+    { time: 42.993484, type: 2 }, { time: 43.492350, type: 3 }, { time: 44.263325, type: 2 },
+
+    { time: 46.349493, type: 1 }, 
+    { time: 47.301874, type: 2 }, { time: 47.664686, type: 3 }, { time: 48.163552, type: 2 },
+    { time: 49.115933, type: 2 }, { time: 50.113666, type: 3 }, { time: 50.975344, type: 2 },
+ 
+    { time: 53.016160, type: 2 }, { time: 53.877838, type: 3 }, { time: 54.830219, type: 2 }, 
+    { time: 56.689629, type: 2 }, { time: 57.823416, type: 3 }, { time: 58.685094, type: 2 }
+    ] 
+},
+    "網打ち": { "大太鼓": [], "〆太鼓": [], 
+    "小鉦・大鉦": [
+            { time: 7.891156, type: 1 }, { time: 8.798186, type: 1 }, { time: 9.841270, type: 1 }, 
+            { time: 10.839002, type: 2 }, { time: 11.247166, type: 3 }, { time: 11.791383, type: 2 },
+            { time: 12.879819, type: 2 }, { time: 13.333333, type: 3 }, { time: 13.786848, type: 2 },
+            { time: 14.739229, type: 2 }, { time: 15.238095, type: 3 }, { time: 15.691610, type: 2 },
+            { time: 16.643991, type: 1 }, { time: 17.551020, type: 1 },
+            { time: 20.408163, type: 1 }, { time: 21.269841, type: 2 }, { time: 21.814059, type: 3 }, { time: 22.312925, type: 2 },
+            { time: 24.126984, type: 1 }, { time: 25.124717, type: 1 }, 
+            { time: 25.941043, type: 2 }, { time: 26.439909, type: 3 }, { time: 26.938776, type: 2 }, 
+            { time: 27.891156, type: 1 }, { time: 28.662132, type: 2 }, { time: 29.115646, type: 3 }, { time: 29.569161, type: 2 },
+            { time: 31.519274, type: 2 }, { time: 32.108844, type: 3 }, { time: 32.653061, type: 2 }, { time: 33.106576, type: 3 }, { time: 33.605442, type: 2 },
+            { time: 34.557823, type: 1 }, { time: 35.510204, type: 1 }, 
+            { time: 39.229025, type: 2 }, { time: 39.727891, type: 3 }, { time: 40.226757, type: 2 }, { time: 40.680272, type: 3 }, { time: 41.133787, type: 2 },
+            { time: 42.086168, type: 1 }, { time: 42.993197, type: 1 }, 
+            { time: 44.897959, type: 1 }, { time: 45.850340, type: 2 }, { time: 46.258503, type: 3 }, { time: 46.757370, type: 2 },
+            { time: 47.664399, type: 2 }, { time: 48.707483, type: 3 }, { time: 49.614512, type: 2 }
+        ] 
+    },
     "根曳唄": {
         "大太鼓": [], "〆太鼓": [], 
         "小鉦・大鉦": [
-            { time: 8.980, type: 1 }, { time: 9.977, type: 2 }, { time: 10.476, type: 3 }, { time: 10.930, type: 2 },
-            { time: 12.971, type: 2 }, { time: 13.923, type: 3 }, { time: 14.831, type: 2 },
-            { time: 17.052, type: 2 }, { time: 18.050, stroke: "", type: 3 }, { time: 19.048, type: 2 },
-            { time: 20.998, type: 1 }, { time: 22.041, type: 2 }, { time: 22.494, type: 3 }, { time: 22.902, type: 2 },
-            { time: 24.989, type: 1 }, { time: 26.984, type: 1 },
-            { time: 28.934, type: 1 }, { time: 29.977, type: 2 }, { time: 30.385, type: 3 }, { time: 30.839, type: 2 },
-            { time: 32.789, type: 1 },
-            { time: 34.694, type: 2 }, { time: 35.601, type: 3 }, { time: 36.463, type: 2 },
-            { time: 38.458, type: 1 }, { time: 39.320, type: 2 }, { time: 39.728, type: 3 }, { time: 40.136, type: 2 },
-            { time: 41.753, type: 2 }, { time: 42.673, type: 3 }, { time: 43.607, type: 2 },
-            { time: 45.456, type: 1 }, { time: 46.334, type: 2 }, { time: 46.768, type: 3 }, { time: 47.230, type: 2 },
-            { time: 49.277, type: 2 }, { time: 50.362, type: 3 }, { time: 51.334, type: 2 }
+            { time: 8.545737, type: 1 }, { time: 9.588821, type: 2 }, { time: 10.087687, type: 3 }, { time: 10.631905, type: 2 },
+            { time: 12.536667, type: 2 }, { time: 13.534399, type: 3 }, { time: 14.441429, type: 2 },
+            { time: 16.436893, type: 2 }, { time: 17.298571,type: 3 }, { time: 18.250952, type: 2 },
+            { time: 20.110363, type: 1 }, { time: 21.062744, type: 2 }, { time: 21.561610, type: 3 }, { time: 22.060476, type: 2 },
+            { time: 24.010590, type: 1 }, { time: 25.824649, type: 1 },
+            { time: 27.729410, type: 1 }, { time: 28.727143, type: 2 }, { time: 29.180658, type: 3 }, { time: 29.634172, type: 2 },
+            { time: 31.538934, type: 1 },
+            { time: 33.398345, type: 2 }, { time: 34.305374, type: 3 }, { time: 35.167052, type: 2 },
+            { time: 36.935760, type: 1 }, { time: 37.888141, type: 2 }, { time: 38.341655, type: 3 }, { time: 38.749819, type: 2 },
+            { time: 40.473175, type: 2 }, { time: 41.334853, type: 3 }, { time: 42.241882, type: 2 },
+            { time: 44.146644, type: 1 }, { time: 45.053673, type: 2 }, { time: 45.507188, type: 3 }, { time: 45.915351, type: 2 },
+            { time: 47.910816, type: 2 }, { time: 48.863197, type: 3 }, { time: 49.815578, type: 2 }
         ]
     },
-    "網打ち": { "大太鼓": [], "〆太鼓": [], "小鉦・大鉦": [] },
-    "網待ち": { "大太鼓": [], "〆太鼓": [], "小鉦・大鉦": [] },
-    "打ち込み": { "大太鼓": [], "〆太鼓": [], "小鉦・大鉦": [] },
-    "庭先き": { "大太鼓": [], "〆太鼓": [], "小鉦・大鉦": [] }
+    //"網待ち": { "大太鼓": [], "〆太鼓": [], "小鉦・大鉦": [] },
+    //"打ち込み": { "大太鼓": [], "〆太鼓": [], "小鉦・大鉦": [] },
+    //"庭先き": { "大太鼓": [], "〆太鼓": [], "小鉦・大鉦": [] }
 };
 
 // --- ゲームシステム制御 ---
