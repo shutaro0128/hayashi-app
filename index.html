@@ -687,19 +687,40 @@ function startGame() {
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playSynthSound(type) {
-    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    let freq = 120;
-    if (selectedGakki === "小鉦・大鉦") { freq = type === 1 ? 520 : (type === 2 ? 780 : 920); } 
-    else { freq = type === 1 ? 120 : 250; }
-    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    osc.start(); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-    osc.stop(audioCtx.currentTime + 0.1);
+    let targetAudioId = "";
 
-    const part = document.getElementById(`kanePart${type}`);
-    if (part) {
-        part.classList.add('kane-active');
-        setTimeout(() => { part.classList.remove('kane-active'); }, 100); 
+    if (selectedGakki === "大太鼓") {
+        targetAudioId = `soundO${type}`;
+    } else if (selectedGakki === "〆太鼓") {
+        targetAudioId = `soundShime${type}`;
+    } else if (selectedGakki === "小鉦・大鉦") {
+        targetAudioId = `soundKane${type}`;
+    }
+
+    // 音声を再生
+    if (targetAudioId) {
+        const audioFile = document.getElementById(targetAudioId);
+        if (audioFile) {
+            audioFile.currentTime = 0;
+            audioFile.play().catch(err => console.log("再生エラー:", err));
+        }
+    }
+
+    // ✨ 画面上のビジュアルアニメーション連動
+    if (selectedGakki === "大太鼓" || selectedGakki === "〆太鼓") {
+        // 太鼓用の光るエフェクト (type: 2=左, 3=右)
+        const taikoPart = document.getElementById(`taikoPart${type}`);
+        if (taikoPart) {
+            taikoPart.classList.add('taiko-active');
+            setTimeout(() => { taikoPart.classList.remove('taiko-active'); }, 80); 
+        }
+    } else {
+        // 鉦用の光るエフェクト (元々の処理)
+        const kanePart = document.getElementById(`kanePart${type}`);
+        if (kanePart) {
+            kanePart.classList.add('kane-active');
+            setTimeout(() => { kanePart.classList.remove('kane-active'); }, 100); 
+        }
     }
 }
 
