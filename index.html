@@ -67,7 +67,13 @@
         .kane-part { fill: #998040; stroke: #fff; stroke-width: 2; transition: fill 0.1s ease; }
         .kane-active { fill: #ffdf00 !important; filter: drop-shadow(0px 0px 15px #ffdf00); }
         .kane-center { fill: #b3974e; stroke: #fff; stroke-width: 2; transition: fill 0.1s ease; }
-
+        .taiko-part {
+            transition: fill 0.05s ease;
+        }
+        /* 太鼓の左/右が光ったときの色（不透明度0.5の朱色・オレンジ系） */
+        .taiko-active {
+            fill: rgba(217, 83, 79, 0.5) !important;
+        }
         #userStatus { font-size: 14px; margin-bottom: 20px; color: #ccc; }
         #historyList { width: 100%; max-width: 400px; max-height: 180px; overflow-y: auto; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 10px; }
         .history-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #444; font-size: 14px; }
@@ -226,9 +232,10 @@
     </div>
 
     <div id="screenLevel" class="screen">
-        <h2>稽古の難易度（譜面表示）</h2>
-        <button class="btn btn-blue" onclick="selectLevel(1)">🔰 レベル1（色あり）</button>
-        <button class="btn btn-gold" onclick="selectLevel(2)">🔥 レベル2（色なし・白黒）</button>
+        <h2>稽古の難易度</h2>
+        <button class="btn btn-blue" onclick="selectLevel(1)">🔰 かんたん（色あり）</button>
+        <button class="btn btn-gold" onclick="selectLevel(2)">🔥 ふつう（色なし）</button>
+        <button class="btn" style="background: #d9534f;" onclick="selectLevel(3)">👹 おに</button>
         <button class="btn" style="background:#555;" onclick="nextScreen('screenKyoku')">戻る</button>
     </div>
 
@@ -265,6 +272,30 @@
                 <circle cx="100" cy="100" r="10" fill="#443518" />
                 <circle cx="100" cy="100" r="8" fill="#5c4921" />
             </svg>
+            <svg id="taikoSvg" width="180" height="180" viewBox="0 0 200 200" style="overflow: visible; display: none;">
+        <defs>
+            <!-- 太鼓の丸い形状に切り抜く -->
+            <clipPath id="taikoClip">
+                <circle cx="100" cy="100" r="80" />
+            </clipPath>
+        </defs>
+        <!-- 太鼓の胴（茶色いフチ） -->
+        <circle cx="100" cy="100" r="86" fill="#8B4513" stroke="#5c2e0b" stroke-width="4"/>
+        <!-- 太鼓の面（本来の革の色） -->
+        <circle cx="100" cy="100" r="80" fill="#fcf3db" />
+        
+        <!-- 左右の打面パーツ（叩くとここに taiko-active クラスがついて光る） -->
+        <g clip-path="url(#taikoClip)">
+            <!-- 左半分 (type: 2) -->
+            <path id="taikoPart2" class="taiko-part" d="M 100,0 A 80,80 0 0,0 100,200 Z" fill="transparent" transition="fill 0.1s" />
+            <!-- 右半分 (type: 3) -->
+            <path id="taikoPart3" class="taiko-part" d="M 100,0 A 80,80 0 0,1 100,200 Z" fill="transparent" transition="fill 0.1s" />
+            <!-- 中心線（うっすら見える境界線） -->
+            <line x1="100" y1="0" x2="100" y2="200" stroke="#8B4513" stroke-width="2" opacity="0.2" stroke-dasharray="4" />
+        </g>
+        <!-- 太鼓の巴紋や中心の雰囲気用の飾り円 -->
+        <circle cx="100" cy="100" r="15" fill="none" stroke="#8B4513" stroke-width="2" opacity="0.3" />
+    </svg>
         </div>
 
         <canvas id="gameCanvas"></canvas>
@@ -585,12 +616,18 @@ window.nextScreen = (screenId) => {
 window.selectGakki = (gakki) => {
     selectedGakki = gakki;
     
-    // 💡 楽器が太鼓系なら「中」ボタンを隠す。小鉦・大鉦なら表示する
     const btnDon = document.getElementById('btnDon');
+    const kaneSvg = document.getElementById('kaneSvg');
+    const taikoSvg = document.getElementById('taikoSvg');
+
     if (selectedGakki === "大太鼓" || selectedGakki === "〆太鼓") {
-        btnDon.classList.add('hide-btn');
+        btnDon.classList.add('hide-btn');      // 中ボタンを隠す
+        kaneSvg.style.display = "none";         // 鉦を隠す
+        taikoSvg.style.display = "block";       // 太鼓を出す
     } else {
-        btnDon.classList.remove('hide-btn');
+        btnDon.classList.remove('hide-btn');   // 中ボタンを出す
+        kaneSvg.style.display = "block";        // 鉦を出して
+        taikoSvg.style.display = "none";        // 太鼓を隠す
     }
 
     const listDiv = document.getElementById('kyokuList'); listDiv.innerHTML = "";
@@ -619,7 +656,13 @@ window.abortGame = () => {
 function startGame() {
     document.getElementById('txtGakki').innerText = selectedGakki;
     document.getElementById('txtKyoku').innerText = selectedKyoku;
-    document.getElementById('txtLevel').innerText = selectedLevel === 1 ? "レベル1" : "レベル2";
+    
+    // 💡 難易度表示のテキスト切り替え
+    let levelText = "かんたん";
+    if (selectedLevel === 2) levelText = "ふつう";
+    if (selectedLevel === 3) levelText = "おに";
+    document.getElementById('txtLevel').innerText = levelText;
+
     countRyo = 0; countKa = 0; countMiss = 0; judgeText = "";
     document.getElementById('txtScore').innerText = "100.0";
 
@@ -692,8 +735,19 @@ function gameLoop() {
         }
         activeNotes++;
         if (x > -30 && x < canvas.width + 30) {
-            if (selectedLevel === 2) { ctx.fillStyle = '#ffffff'; } 
-            else { ctx.fillStyle = note.type === 1 ? '#d9534f' : (note.type === 2 ? '#337ab7' : '#2eb82e'); }
+            // 💡 難易度（レベル）によるノーツの見た目切り替え
+            if (selectedLevel === 3) {
+                // 👹 おに：キャンバス（画面）には何も描画しない（透明）
+                return;
+            } else if (selectedLevel === 2) {
+                // 🔥 ふつう：すべて白色（色なし白黒）
+                ctx.fillStyle = '#ffffff';
+            } else {
+                // 🔰 かんたん：ボタンの色と連動（色あり）
+                ctx.fillStyle = note.type === 1 ? '#d9534f' : (note.type === 2 ? '#337ab7' : '#2eb82e');
+            }
+            
+            // ノーツ（丸）を描画（「おに」以外の場合のみここが実行されます）
             ctx.beginPath(); ctx.arc(x, centerY, 22, 0, Math.PI * 2); ctx.fill();
         }
     });
